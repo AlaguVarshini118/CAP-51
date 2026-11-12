@@ -1,4 +1,3 @@
-
 name: CAP-51 Build and Package
 
 on:
@@ -39,8 +38,7 @@ jobs:
 
           cp "$JAR" bundle/
 
-          cp backend/.ebextensions/alb-http-to-https-redirection.config \
-            bundle/.ebextensions/
+          cp backend/.ebextensions/alb-http-to-https-redirection.config bundle/.ebextensions/
 
           cd bundle
           zip -r ../cap51-deployment.zip .
