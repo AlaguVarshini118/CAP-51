@@ -1,0 +1,56 @@
+
+name: CAP-51 Build and Package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build and test backend
+        working-directory: backend
+        run: ./mvnw -B clean test package
+
+      - name: Create deployment package
+        run: |
+          mkdir -p bundle/.ebextensions
+
+          JAR=$(find backend/target -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1)
+
+          if [ -z "$JAR" ]; then
+            echo "Backend JAR not found"
+            exit 1
+          fi
+
+          cp "$JAR" bundle/
+
+          cp backend/.ebextensions/alb-http-to-https-redirection.config \
+            bundle/.ebextensions/
+
+          cd bundle
+          zip -r ../cap51-deployment.zip .
+
+      - name: Verify deployment package
+        run: unzip -l cap51-deployment.zip
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cap51-deployment-package
+          path: cap51-deployment.zip
+          retention-days: 7
