@@ -11,6 +11,37 @@ The project also implements HTTPS, HTTP-to-HTTPS redirection, application health
 ## Architecture
 
 ```mermaid
+flowchart TB
+    U["User / Client"] --> R53["Amazon Route 53<br/>api.varshini.space"]
+
+    R53 -->|OLD: Weight 100| OLD["OLD Elastic Beanstalk Environment"]
+    R53 -->|NEW: Weight 0| NEW["NEW Elastic Beanstalk Environment"]
+
+    subgraph AWS["AWS - ap-south-1"]
+        OLD --> ALB1["OLD Application Load Balancer"]
+        NEW --> ALB2["NEW Application Load Balancer"]
+
+        ALB1 --> APP1["Spring Boot Application<br/>APP_ENV=old"]
+        ALB2 --> APP2["Spring Boot Application<br/>APP_ENV=new"]
+
+        ACM["AWS Certificate Manager<br/>HTTPS Certificate"]
+        ACM -.-> ALB1
+        ACM -.-> ALB2
+    end
+
+    APP1 --> HEALTH1["Health & Environment APIs"]
+    APP2 --> HEALTH2["Health & Environment APIs"]
+
+    GH["GitHub Repository"] --> GA["GitHub Actions"]
+    GA --> OIDC["AWS IAM OIDC Role"]
+    OIDC -.-> OLD
+    OIDC -.-> NEW
+```
+
+
+## Architecture
+
+```mermaid
 flowchart TD
     A[User Request] --> B[Route 53]
     B --> C{Weighted DNS Routing}
@@ -25,6 +56,63 @@ flowchart TD
     L[ACM SSL Certificate] --> F
     L --> G
 ```
+
+## DNS Cutover and Rollback Workflow
+
+```mermaid
+flowchart TD
+    A["Start: OLD environment receives traffic"] --> B["Check NEW environment health"]
+    B --> C{"Is NEW healthy?"}
+
+    C -->|Yes| D["Update Route 53 weighted records"]
+    C -->|No| E["Block cutover"]
+
+    D --> F["OLD weight = 0"]
+    F --> G["NEW weight = 100"]
+    G --> H["Verify HTTPS endpoint"]
+    H --> I{"Is NEW working?"}
+
+    I -->|Yes| J["Cutover successful"]
+    I -->|No| K["Rollback"]
+
+    K --> L["Set OLD weight = 100"]
+    L --> M["Set NEW weight = 0"]
+    M --> N["Verify OLD environment"]
+
+    J --> O["End"]
+    N --> O
+    E --> O
+```
+
+## AWS Deployment Evidence
+
+### 1. Route 53 Weighted DNS Records
+
+![Route 53 Weighted Records](docs/images/route53-weighted-records.png)
+
+### 2. Elastic Beanstalk Environments
+
+![Elastic Beanstalk Environments](docs/images/elasticbeanstalk-environments.png)
+
+### 3. HTTPS Configuration
+
+**OLD Environment**
+
+![OLD HTTPS Listener](docs/images/old-https-listener.png)
+
+**NEW Environment**
+
+![NEW HTTPS Listener](docs/images/new-https-listener.png)
+
+### 4. Application Health Verification
+
+![HTTPS Health Check](docs/images/https-health-check.png)
+
+### 5. GitHub Actions OIDC Authentication
+
+![GitHub OIDC Success](docs/images/github-oidc-success.png)
+
+
 
 ## Technologies Used
 
