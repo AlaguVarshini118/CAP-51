@@ -1,0 +1,6 @@
+# IDE settings
+.vscode/
+
+# Backend build files
+backend/target/
+backend/*.zip
