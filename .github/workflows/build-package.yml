@@ -1,7 +1,14 @@
-name: CAP-51 Build and Package
+
+name: CAP-51 Build and Deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy_to_new:
+        description: 'Deploy to NEW Elastic Beanstalk environment'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -52,3 +59,61 @@ jobs:
           name: cap51-deployment-package
           path: cap51-deployment.zip
           retention-days: 7
+
+  deploy-new:
+    needs: build
+    if: ${{ inputs.deploy_to_new }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download deployment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cap51-deployment-package
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::248557779459:role/CAP51-GitHub-Deployment-Role
+          aws-region: ap-south-1
+
+      - name: Upload package to S3
+        run: |
+          VERSION_LABEL="cap51-${GITHUB_SHA::7}-${GITHUB_RUN_NUMBER}"
+          S3_KEY="cap51-deployments/${VERSION_LABEL}.zip"
+
+          echo "VERSION_LABEL=$VERSION_LABEL" >> "$GITHUB_ENV"
+          echo "S3_KEY=$S3_KEY" >> "$GITHUB_ENV"
+
+          aws s3 cp cap51-deployment.zip \
+            "s3://elasticbeanstalk-ap-south-1-248557779459/$S3_KEY"
+
+      - name: Create Elastic Beanstalk application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name cap51-backend \
+            --version-label "$VERSION_LABEL" \
+            --source-bundle \
+              S3Bucket=elasticbeanstalk-ap-south-1-248557779459,S3Key="$S3_KEY"
+
+      - name: Deploy to NEW environment
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name cap51-new-env \
+            --version-label "$VERSION_LABEL"
+
+      - name: Wait for deployment
+        run: |
+          aws elasticbeanstalk wait environment-updated \
+            --environment-names cap51-new-env
+
+      - name: Verify NEW environment
+        run: |
+          aws elasticbeanstalk describe-environments \
+            --environment-names cap51-new-env \
+            --query 'Environments[0].[Status,Health,VersionLabel]' \
+            --output table
