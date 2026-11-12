@@ -23,7 +23,7 @@ jobs:
 
       - name: Build and test backend
         working-directory: backend
-        run: ./mvnw -B clean test package
+        run: bash ./mvnw -B clean test package
 
       - name: Create deployment package
         run: |
