@@ -1,11 +1,18 @@
+<<<<<<< HEAD
 
+=======
+>>>>>>> 0b9f6e5 (Add GitHub Actions deployment to NEW environment)
 name: CAP-51 Build and Deploy
 
 on:
   workflow_dispatch:
     inputs:
       deploy_to_new:
+<<<<<<< HEAD
         description: 'Deploy to NEW Elastic Beanstalk environment'
+=======
+        description: "Deploy to NEW Elastic Beanstalk environment"
+>>>>>>> 0b9f6e5 (Add GitHub Actions deployment to NEW environment)
         required: true
         type: boolean
         default: false
@@ -25,7 +32,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
           cache: maven
 
       - name: Build and test backend
@@ -110,10 +117,20 @@ jobs:
         run: |
           aws elasticbeanstalk wait environment-updated \
             --environment-names cap51-new-env
-
       - name: Verify NEW environment
         run: |
-          aws elasticbeanstalk describe-environments \
+          RESULT=$(aws elasticbeanstalk describe-environments \
             --environment-names cap51-new-env \
             --query 'Environments[0].[Status,Health,VersionLabel]' \
-            --output table
+            --output text)
+
+          echo "$RESULT"
+
+          STATUS=$(echo "$RESULT" | awk '{print $1}')
+          HEALTH=$(echo "$RESULT" | awk '{print $2}')
+
+          if [ "$STATUS" != "Ready" ] || [ "$HEALTH" != "Green" ]; then
+            echo "NEW environment deployment verification failed"
+            exit 1
+          fi
+          
