@@ -321,6 +321,16 @@ The OLD environment returned HTTP 200 with status `UP`.
 ### GitHub Actions OIDC authentication
 ![GitHub OIDC Success](docs/images/github-oidc-success.png)
 
+### Final deployment verification
+
+![GitHub Actions Deployment Success](docs/images/github-actions-deployment-success.png)
+
+![Elastic Beanstalk Final Status](docs/images/elasticbeanstalk-final-status.png)
+
+![Route 53 Final Cutover](docs/images/route53-final-cutover.png)
+
+![NEW Environment Health Verification](docs/images/new-environment-health-verification.png)
+
 ## Troubleshooting and Lessons Learned
 
 Real issues hit during this project and how each was diagnosed.
